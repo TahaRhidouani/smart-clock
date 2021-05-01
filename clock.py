@@ -6,9 +6,16 @@ import colorsys
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 from rgbmatrix import graphics
 
+# API variables
+with open('apikeys', 'r') as file:
+    for line in file:
+        key = line.strip().split(":")
+        if (key[0] == 'apikey'):
+            apikey = key[1] # From openweathermap
+        elif (key[0] == 'deviceID'):
+            deviceID = key[1] # Device ID for smartthings
+
 # Key variables
-apikey = "352bcac06997a1c7ea0224d8acaee9d7" # From openweathermap
-deviceID = "b113eb05-7cbe-475f-870d-8ce0d8971e3e" # Device ID for smartthings
 city = "Ottawa, CA" # Weather location
 weatherRefresh = 120 # Weather refresh (in seconds)
 timezone = -4 # Hours from UTC
