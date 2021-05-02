@@ -7,7 +7,7 @@ from rgbmatrix import RGBMatrix, RGBMatrixOptions
 from rgbmatrix import graphics
 
 # API variables
-with open('apikeys', 'r') as file:
+with open('/home/pi/rpi-rgb-led-matrix/bindings/python/samples/apikeys', 'r') as file:
     for line in file:
         key = line.strip().split(":")
         if (key[0] == 'apikey'):
