@@ -163,14 +163,26 @@ while True:
             dateIntensity -= 3.5
         elif (int(str(delay).split('.')[0][-1]) == 0 and int(str(delay).split('.')[1]) < 45):
             dateIntensity += 3.5
-        dateColor = graphics.Color(dateIntensity * brightness, dateIntensity * brightness, dateIntensity * brightness)
+        if ((dateIntensity * brightness) < 0):
+            dateWhite = 0
+        elif ((dateIntensity * brightness) > 255):
+            dateWhite = 255
+        else:
+            dateWhite = dateIntensity * brightness
+        dateColor = graphics.Color(dateWhite, dateWhite, dateWhite)
     else:
         showDate = False
         if (int(str(delay).split('.')[0][-1]) == 9 and int(str(delay).split('.')[1]) >= 45):
             weatherIntensity -= 3.5
         elif (int(str(delay).split('.')[0][-1]) == 5 and int(str(delay).split('.')[1]) < 45):
             weatherIntensity += 3.5
-        weatherColor = graphics.Color(weatherIntensity * brightness, weatherIntensity * brightness, weatherIntensity * brightness)
+        if ((weatherIntensity * brightness) < 0):
+            weatherWeather = 0
+        elif ((weatherIntensity * brightness) > 255):
+            weatherWeather = 255
+        else:
+            weatherWeather = weatherIntensity * brightness
+        weatherColor = graphics.Color(weatherWeather, weatherWeather, weatherWeather)
 
     # Time
     clock = datetime.now().strftime("%I:%M")
