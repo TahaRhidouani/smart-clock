@@ -114,7 +114,7 @@ while True:
             description = weather["weather"][0]["description"].capitalize()
             sunset = datetime.fromtimestamp(weather["sys"]["sunset"]).strftime('%H')
             sunrise = datetime.fromtimestamp(weather["sys"]["sunrise"]).strftime('%H')
-            darkOutside = ((int(sunset) + 1) < datetime.now().strftime("%H") or datetime.now().strftime("%H") < (int(sunrise) + 1)) # Check if it's dark outside
+            darkOutside = ((int(sunset) + 1) < int(datetime.now().strftime("%H")) or int(datetime.now().strftime("%H")) < (int(sunrise) + 1)) # Check if it's dark outside
             weather_text = temperature + "   " + description.split()[-1]
             delay = 0.00
 
