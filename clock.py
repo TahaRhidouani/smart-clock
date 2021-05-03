@@ -67,7 +67,7 @@ def display():
         graphics.DrawText(canvas, font_2, getSmallTextOffset(date), 28, dateColor, date)
     else:
         graphics.DrawText(canvas, font_2, getSmallTextOffset(weather_text), 28, weatherColor, weather_text)
-    graphics.DrawText(canvas, font_1, getBigTextOffset(clock) + 1, 21, graphics.Color(current_color[0], current_color[1], current_color[2]), clock)
+    graphics.DrawText(canvas, font_1, getBigTextOffset(clock) + 1, 20, graphics.Color(current_color[0], current_color[1], current_color[2]), clock)
 
     matrix.SwapOnVSync(canvas)
 
@@ -107,7 +107,7 @@ while True:
             noWifi = False
 
     # Weather
-    if (delay == weatherRefresh and noWifi == False):
+    if (round(delay, 2) == weatherRefresh and noWifi == False):
         weather = requests.get("http://api.openweathermap.org/data/2.5/weather?appid="+ apikey + "&q=" + city + "&units=metric").json()
         if weather["cod"] != "404":
             temperature = str(int(weather["main"]["feels_like"])) + u"\N{DEGREE SIGN}"
@@ -159,9 +159,9 @@ while True:
     # Switch between date and weather
     if (int(str(delay).split('.')[0][-1]) < 5):
         showDate = True
-        if (int(str(delay).split('.')[0][-1]) == 4 and int(str(delay).split('.')[1]) >= 45):
+        if (int(str(round(delay, 2)).split('.')[0][-1]) == 4 and int(str(round(delay, 2)).split('.')[1]) >= 45):
             dateIntensity -= 3.5
-        elif (int(str(delay).split('.')[0][-1]) == 0 and int(str(delay).split('.')[1]) < 45):
+        elif (int(str(round(delay, 2)).split('.')[0][-1]) == 0 and int(str(round(delay, 2)).split('.')[1]) < 45):
             dateIntensity += 3.5
         if ((dateIntensity * brightness) < 0):
             dateWhite = 0
@@ -172,17 +172,17 @@ while True:
         dateColor = graphics.Color(dateWhite, dateWhite, dateWhite)
     else:
         showDate = False
-        if (int(str(delay).split('.')[0][-1]) == 9 and int(str(delay).split('.')[1]) >= 45):
+        if (int(str(round(delay, 2)).split('.')[0][-1]) == 9 and int(str(round(delay, 2)).split('.')[1]) >= 45):
             weatherIntensity -= 3.5
-        elif (int(str(delay).split('.')[0][-1]) == 5 and int(str(delay).split('.')[1]) < 45):
+        elif (int(str(round(delay, 2)).split('.')[0][-1]) == 5 and int(str(round(delay, 2)).split('.')[1]) < 45):
             weatherIntensity += 3.5
         if ((weatherIntensity * brightness) < 0):
-            weatherWeather = 0
+            weatherWhite = 0
         elif ((weatherIntensity * brightness) > 255):
-            weatherWeather = 255
+            weatherWhite = 255
         else:
-            weatherWeather = weatherIntensity * brightness
-        weatherColor = graphics.Color(weatherWeather, weatherWeather, weatherWeather)
+            weatherWhite = weatherIntensity * brightness
+        weatherColor = graphics.Color(weatherWhite, weatherWhite, weatherWhite)
 
     # Time
     clock = datetime.now().strftime("%I:%M")
