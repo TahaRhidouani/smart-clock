@@ -1,19 +1,23 @@
 import time
 from datetime import datetime
 import json
+import sys
 import requests
 import colorsys
+import subprocess
 from rgbmatrix import RGBMatrix, RGBMatrixOptions
 from rgbmatrix import graphics
 
 # API variables
-with open('/home/pi/rpi-rgb-led-matrix/bindings/python/samples/apikeys', 'r') as file:
+with open('/home/ubuntu/rpi-rgb-led-matrix/bindings/python/samples/clock/apikeys', 'r') as file:
     for line in file:
         key = line.strip().split(":")
         if (key[0] == 'apikey'):
             apikey = key[1] # From openweathermap
-        elif (key[0] == 'deviceID'):
-            deviceID = key[1] # Device ID for smartthings
+        elif (key[0] == 'auth'):
+            auth = key[1] # Authorization key for smartthings
+            devicesList = requests.get("https://api.smartthings.com/v1/devices/", headers = {'Authorization': 'Bearer ' + auth}).json()
+            deviceID = devicesList['items'][0]['deviceId'] # Getting device ID for the light
 
 # Key variables
 city = "Ottawa, CA" # Weather location
@@ -41,9 +45,9 @@ canvas.Clear()
 
 # Graphics stuff
 font_1 = graphics.Font()
-font_1.LoadFont("/home/pi/rpi-rgb-led-matrix/bindings/python/samples/time.bdf")
+font_1.LoadFont("/home/ubuntu/rpi-rgb-led-matrix/bindings/python/samples/clock/time.bdf")
 font_2 = graphics.Font()
-font_2.LoadFont("/home/pi/rpi-rgb-led-matrix/bindings/python/samples/text.bdf")
+font_2.LoadFont("/home/ubuntu/rpi-rgb-led-matrix/bindings/python/samples/clock/text.bdf")
 
 # Initializing variables
 delay = weatherRefresh
@@ -68,6 +72,21 @@ def display():
     else:
         graphics.DrawText(canvas, font_2, getSmallTextOffset(weather_text), 28, weatherColor, weather_text)
     graphics.DrawText(canvas, font_1, getBigTextOffset(clock) + 1, 20, graphics.Color(current_color[0], current_color[1], current_color[2]), clock)
+    
+    global webStatus
+
+    if (webStatus != 200): # If website is down, flash red border
+        if (round(delay, 2)%2 == 0):
+            subprocess.Popen(["sudo", "mount", "-a"])
+            webStatus = requests.get("https://taharhidouani.com").status_code
+        
+        if (int(delay)%2 == 0):
+            for x in range(0, canvas.width):
+                canvas.SetPixel(x, 0, 255*brightness, 0, 0)
+                canvas.SetPixel(x, canvas.height - 1, 255*brightness, 0, 0)
+            for y in range(0, canvas.height):
+                canvas.SetPixel(0, y, 25*brightness, 0, 0)
+                canvas.SetPixel(canvas.width - 1, y, 255*brightness, 0, 0)
 
     matrix.SwapOnVSync(canvas)
 
@@ -97,118 +116,120 @@ def getSmallTextOffset(small_text):
             small_text_length += 4
     return (64 - small_text_length)/2 + 1
 
-while True:    
-    if (round(delay,2) % 1 == 0):
-        try:
-            lights = requests.get("https://api.smartthings.com/v1/devices/" + deviceID + "/status", headers = {'Authorization': 'Bearer 6acbcf0a-e58b-45b9-9605-9be747206419'}).json()
-        except:
-            noWifi = True
-        else:
-            noWifi = False
-
-    # Weather
-    if (round(delay, 2) == weatherRefresh and noWifi == False):
-        weather = requests.get("http://api.openweathermap.org/data/2.5/weather?appid="+ apikey + "&q=" + city + "&units=metric").json()
-        if weather["cod"] != "404":
-            temperature = str(int(weather["main"]["feels_like"])) + u"\N{DEGREE SIGN}"
-            description = weather["weather"][0]["description"].capitalize()
-            sunset = datetime.fromtimestamp(weather["sys"]["sunset"]).strftime('%H')
-            sunrise = datetime.fromtimestamp(weather["sys"]["sunrise"]).strftime('%H')
-            darkOutside = ((int(sunset) + 1) < int(datetime.now().strftime("%H")) or int(datetime.now().strftime("%H")) < (int(sunrise) + 1)) # Check if it's dark outside
-            weather_text = temperature + "   " + description.split()[-1]
-            delay = 0.00
-
-    # Set colors to lights color
-    status = lights["components"]["main"]["switch"]["switch"]["value"]
-    target_color = colorsys.hsv_to_rgb(float((lights["components"]["main"]["colorControl"]["hue"]["value"])) / 100, float(lights["components"]["main"]["colorControl"]["saturation"]["value"]) / 100, round(brightness))        
-
-    # If it's not dark outside and lights are off, make the text white
-    if ((status == "off" or noWifi) and darkOutside == False):
-        target_color = colorsys.hsv_to_rgb(0, 0, round(brightness/1.2, 2))
-
-    # Default value for first loop (to prevent crash to unset variable)
-    if (firstTime and noWifi == False):
-        current_color = [target_color[0]*255, target_color[1]*255, target_color[2]*255]
-        temp_color = colorsys.hsv_to_rgb(float((lights["components"]["main"]["colorControl"]["hue"]["value"])) / 100, float(lights["components"]["main"]["colorControl"]["saturation"]["value"]) / 100, round(brightness))
-        firstTime = False
+while True:
+    try:
+        if (round(delay,2) % 1 == 0): # Check lights every second
+            lights = requests.get("https://api.smartthings.com/v1/devices/" + deviceID + "/status", headers = {'Authorization': 'Bearer '+ auth}).json()
     
-    # If color changed, calculate difference
-    if (temp_color != target_color):
-        temp_color = target_color
-        for i in range(3):
-            differenceColorAmount[i] = abs(round(target_color[i]*255) - round(current_color[i]))
 
-    if (current_color != [target_color[0]*255, target_color[1]*255, target_color[2]*255]):
+        if (round(delay,2) % 10 == 0): # Check website every 10 seconds
+            webStatus = requests.get("https://taharhidouani.com").status_code
+
+        # Weather
+        if (round(delay, 2) == weatherRefresh):
+            weather = requests.get("http://api.openweathermap.org/data/2.5/weather?appid="+ apikey + "&q=" + city + "&units=metric").json()
+            if weather["cod"] != "404":
+                temperature = str(int(weather["main"]["feels_like"])) + u"\N{DEGREE SIGN}"
+                description = weather["weather"][0]["description"].capitalize()
+                sunset = datetime.fromtimestamp(weather["sys"]["sunset"]).strftime('%H')
+                sunrise = datetime.fromtimestamp(weather["sys"]["sunrise"]).strftime('%H')
+                darkOutside = ((int(sunset)) < int(datetime.now().strftime("%H")) or int(datetime.now().strftime("%H")) < (int(sunrise))) # Check if it's dark outside
+                weather_text = temperature + "   " + description.split()[-1]
+                delay = 0.00
+
+        # Set colors to lights color
+        status = lights["components"]["main"]["switch"]["switch"]["value"]
+        target_color = colorsys.hsv_to_rgb(float((lights["components"]["main"]["colorControl"]["hue"]["value"])) / 100, float(lights["components"]["main"]["colorControl"]["saturation"]["value"]) / 100, round(brightness))        
+
+        # If it's not dark outside and lights are off, make the text white
+        if (status == "off" and darkOutside == False):
+            target_color = colorsys.hsv_to_rgb(0, 0, round(brightness/1.2, 2))
+
+        # Default value for first loop (to prevent crash to unset variable)
+        if (firstTime):
+            current_color = [round(target_color[0]*255), target_color[1]*255, target_color[2]*255]
+            temp_color = colorsys.hsv_to_rgb(float((lights["components"]["main"]["colorControl"]["hue"]["value"])) / 100, float(lights["components"]["main"]["colorControl"]["saturation"]["value"]) / 100, round(brightness))
+            firstTime = False
         
-        # Increase the color by 1/30 of its final value every refresh
-        for i in range(3):
-            if (round(target_color[i]*255) < round(current_color[i])):
-                current_color[i] -= (differenceColorAmount[i]/30)
-            elif (round(target_color[i]*255) > round(current_color[i])):
-                current_color[i] += (differenceColorAmount[i]/30)
+        # If color changed, calculate difference
+        if (temp_color != target_color):
+            temp_color = target_color
+            for i in range(3):
+                differenceColorAmount[i] = abs(round(target_color[i]*255) - round(current_color[i]))
 
-        # Checks if the values are valid
-        for i in range(3):
-            if (current_color[i] > 255):
-                current_color[i] = 255
-            elif (current_color[i] < 0):
-                current_color[0] = 0
+        if ([round(current_color[0]), round(current_color[1]), round(current_color[2])] != [round(target_color[0]*255), round(target_color[1]*255), round(target_color[2]*255)]):
+            
+            # Increase the color by 1/30 of its final value every refresh
+            for i in range(3):
+                if (round(target_color[i]*255) < round(current_color[i])):
+                    current_color[i] -= (differenceColorAmount[i]/30)
+                elif (round(target_color[i]*255) > round(current_color[i])):
+                    current_color[i] += (differenceColorAmount[i]/30)
+
+            # Checks if the values are valid
+            for i in range(3):
+                if (current_color[i] > 255):
+                    current_color[i] = 255
+                elif (current_color[i] < 0):
+                    current_color[i] = 0
+
+        # Switch between date and weather
+        if (int(str(delay).split('.')[0][-1]) < 5):
+            showDate = True
+            if (int(str(round(delay, 2)).split('.')[0][-1]) == 4 and int(str(round(delay, 2)).split('.')[1]) >= 45 and dateIntensity >= 0):
+                dateIntensity -= 3.5
+            elif (int(str(round(delay, 2)).split('.')[0][-1]) == 0 and int(str(round(delay, 2)).split('.')[1]) < 45 and dateIntensity <= 255):
+                dateIntensity += 3.5
+            if ((dateIntensity * brightness) < 0):
+                dateWhite = 0
+            elif ((dateIntensity * brightness) > 255):
+                dateWhite = 255
             else:
-                current_color[0] = round(current_color[0])
-
-    # Switch between date and weather
-    if (int(str(delay).split('.')[0][-1]) < 5):
-        showDate = True
-        if (int(str(round(delay, 2)).split('.')[0][-1]) == 4 and int(str(round(delay, 2)).split('.')[1]) >= 45):
-            dateIntensity -= 3.5
-        elif (int(str(round(delay, 2)).split('.')[0][-1]) == 0 and int(str(round(delay, 2)).split('.')[1]) < 45):
-            dateIntensity += 3.5
-        if ((dateIntensity * brightness) < 0):
-            dateWhite = 0
-        elif ((dateIntensity * brightness) > 255):
-            dateWhite = 255
+                dateWhite = dateIntensity * brightness
+            dateColor = graphics.Color(dateWhite, dateWhite, dateWhite)
         else:
-            dateWhite = dateIntensity * brightness
-        dateColor = graphics.Color(dateWhite, dateWhite, dateWhite)
-    else:
-        showDate = False
-        if (int(str(round(delay, 2)).split('.')[0][-1]) == 9 and int(str(round(delay, 2)).split('.')[1]) >= 45):
-            weatherIntensity -= 3.5
-        elif (int(str(round(delay, 2)).split('.')[0][-1]) == 5 and int(str(round(delay, 2)).split('.')[1]) < 45):
-            weatherIntensity += 3.5
-        if ((weatherIntensity * brightness) < 0):
-            weatherWhite = 0
-        elif ((weatherIntensity * brightness) > 255):
-            weatherWhite = 255
-        else:
-            weatherWhite = weatherIntensity * brightness
-        weatherColor = graphics.Color(weatherWhite, weatherWhite, weatherWhite)
+            showDate = False
+            if (int(str(round(delay, 2)).split('.')[0][-1]) == 9 and int(str(round(delay, 2)).split('.')[1]) >= 45 and weatherIntensity >= 0):
+                weatherIntensity -= 3.5
+            elif (int(str(round(delay, 2)).split('.')[0][-1]) == 5 and int(str(round(delay, 2)).split('.')[1]) < 45 and weatherIntensity <= 255):
+                weatherIntensity += 3.5
+            if ((weatherIntensity * brightness) < 0):
+                weatherWhite = 0
+            elif ((weatherIntensity * brightness) > 255):
+                weatherWhite = 255
+            else:
+                weatherWhite = weatherIntensity * brightness
+            weatherColor = graphics.Color(weatherWhite, weatherWhite, weatherWhite)
 
-    # Time
-    clock = datetime.now().strftime("%I:%M")
-    ampm = datetime.now().strftime("%p")
+        # Time
+        clock = datetime.now().strftime("%I:%M")
+        ampm = datetime.now().strftime("%p")
 
-    # Date
-    date = datetime.today().strftime("%a, %b %d")
+        # Date
+        date = datetime.today().strftime("%a, %b %d")
 
-    if (darkOutside):
-        if (status == "off" or noWifi):
-            # Turn off display
-            if (round(brightness, 2) != 0):
-                brightness -= 0.02
+        if (darkOutside):
+            if (status == "off"):
+                # Turn off display
+                if (round(brightness, 2) != 0):
+                    brightness -= 0.02
+                    display()
+                else:
+                    canvas.Clear()
+            else:
+                # Turn on display
+                if (round(brightness, 2) != 1):
+                    brightness += 0.02
                 display()
-            else:
-                canvas.Clear()
         else:
             # Turn on display
             if (round(brightness, 2) != 1):
                 brightness += 0.02
             display()
-    else:
-        # Turn on display
-        if (round(brightness, 2) != 1):
-            brightness += 0.02
-        display()
     
-    time.sleep(0.01)
-    delay += 0.01
+        time.sleep(0.01)
+        delay += 0.01
+    except KeyboardInterrupt:
+        sys.exit()
+    except Exception as e:
+        print(e)
