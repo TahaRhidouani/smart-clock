@@ -85,7 +85,7 @@ def display():
                 canvas.SetPixel(x, 0, 255*brightness, 0, 0)
                 canvas.SetPixel(x, canvas.height - 1, 255*brightness, 0, 0)
             for y in range(0, canvas.height):
-                canvas.SetPixel(0, y, 25*brightness, 0, 0)
+                canvas.SetPixel(0, y, 255*brightness, 0, 0)
                 canvas.SetPixel(canvas.width - 1, y, 255*brightness, 0, 0)
 
     matrix.SwapOnVSync(canvas)
