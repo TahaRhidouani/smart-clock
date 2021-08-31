@@ -9,22 +9,22 @@ from rgbmatrix import RGBMatrix, RGBMatrixOptions
 from rgbmatrix import graphics
 
 # API variables
-with open('/home/ubuntu/rpi-rgb-led-matrix/bindings/python/samples/clock/apikeys', 'r') as file:
+with open('/srv/dev-disk-by-uuid-87bac57a-ccb7-4b8f-bade-6277e3fa0e30/Nextcloud/nextcloud/data/tahainc/files/Documents/Programming/Server/Clock/apikeys', 'r') as file:
     for line in file:
         key = line.strip().split(":")
         if (key[0] == 'apikey'):
             apikey = key[1] # From openweathermap
         elif (key[0] == 'auth'):
             auth = key[1] # Authorization key for smartthings
-            devicesList = requests.get("https://api.smartthings.com/v1/devices/", headers = {'Authorization': 'Bearer ' + auth}).json()
-            deviceID = devicesList['items'][0]['deviceId'] # Getting device ID for the light
 
 # Key variables
 city = "Ottawa, CA" # Weather location
 weatherRefresh = 120 # Weather refresh (in seconds)
 timezone = -4 # Hours from UTC
+animationIdle = 3 # Number of seconds before moving to next text (for subtext)
+animationSpeed = 0.05 # Higher number = Faster animation (but choppier)
 
-# #Configuration of the display
+# Configuration of the display
 options = RGBMatrixOptions()
 options.rows = 32
 options.cols = 64
@@ -33,11 +33,15 @@ options.parallel = 1
 options.row_address_type = 0
 options.multiplexing = 0
 options.pwm_bits = 11
-options.brightness = 60
-options.pwm_lsb_nanoseconds = 130
+options.brightness = 100
+options.pwm_lsb_nanoseconds = 50
+options.limit_refresh_rate_hz = 500
 options.led_rgb_sequence = "RBG"
+options.hardware_mapping = 'adafruit-hat-pwm'
 options.gpio_slowdown = 4
 options.pixel_mapper_config = ""
+options.drop_privileges = False
+options.disable_hardware_pulsing = False
 matrix = RGBMatrix(options = options)
 
 canvas = matrix.CreateFrameCanvas()
@@ -45,33 +49,33 @@ canvas.Clear()
 
 # Graphics stuff
 font_1 = graphics.Font()
-font_1.LoadFont("/home/ubuntu/rpi-rgb-led-matrix/bindings/python/samples/clock/time.bdf")
+font_1.LoadFont("/srv/dev-disk-by-uuid-87bac57a-ccb7-4b8f-bade-6277e3fa0e30/Nextcloud/nextcloud/data/tahainc/files/Documents/Programming/Server/Clock/time.bdf")
 font_2 = graphics.Font()
-font_2.LoadFont("/home/ubuntu/rpi-rgb-led-matrix/bindings/python/samples/clock/text.bdf")
+font_2.LoadFont("/srv/dev-disk-by-uuid-87bac57a-ccb7-4b8f-bade-6277e3fa0e30/Nextcloud/nextcloud/data/tahainc/files/Documents/Programming/Server/Clock/text.bdf")
 
 # Initializing variables
+firstTime = True
 delay = weatherRefresh
 temperature, description, sunset, sunrise = "", "", "" ,""
 brightness = 1
-dateIntensity = 0
-weatherIntensity = 0
-showDate = True
-firstTime = True
 differenceColorAmount = [0, 0, 0]
+subtexts = [datetime.today().strftime("%a, %b %d"), ""]
+subtextIndex = 0 # Which element of the array is the subtext showing
+subtextOpacity = 0 # Starting opacity of the subtext
+animationTime = 0 # Gets incremented as the animation progresses
+fading = True # Is there a current animation running?
+fadingIn = True # Is the subtext animation fading in or fading out?
 
 # Starting date and weather color
-dateColor = graphics.Color(0, 0, 0)
-weatherColor = graphics.Color(0, 0, 0)
+clockColor = graphics.Color(0, 0, 0)
+subTextColor = graphics.Color(0, 0, 0)
 
 # Function to draw all the elements on the matrix
 def display():
     canvas.Clear()
 
-    if (showDate):
-        graphics.DrawText(canvas, font_2, getSmallTextOffset(date), 28, dateColor, date)
-    else:
-        graphics.DrawText(canvas, font_2, getSmallTextOffset(weather_text), 28, weatherColor, weather_text)
-    graphics.DrawText(canvas, font_1, getBigTextOffset(clock) + 1, 20, graphics.Color(current_color[0], current_color[1], current_color[2]), clock)
+    graphics.DrawText(canvas, font_1, getBigTextOffset(clock) + 1, 20, clockColor, clock)
+    graphics.DrawText(canvas, font_2, getSmallTextOffset(subtexts[subtextIndex]), 28, subTextColor, subtexts[subtextIndex])
     
     global webStatus
 
@@ -79,6 +83,7 @@ def display():
         if (round(delay, 2)%2 == 0):
             subprocess.Popen(["sudo", "mount", "-a"])
             webStatus = requests.get("https://taharhidouani.com").status_code
+            print("Website is down (" + str(datetime.now()) + ")")
         
         if (int(delay)%2 == 0):
             for x in range(0, canvas.width):
@@ -116,12 +121,30 @@ def getSmallTextOffset(small_text):
             small_text_length += 4
     return (64 - small_text_length)/2 + 1
 
+
+while True:
+    try:
+        devicesList = requests.get("https://api.smartthings.com/v1/devices/", headers = {'Authorization': 'Bearer ' + auth}).json()
+        deviceID = devicesList['items'][0]['deviceId'] # Getting device ID for the light
+        break
+    except Exception as e:
+        canvas.Clear()
+
+        clockColor = graphics.Color(200, 200, 200)
+        subTextColor = graphics.Color(255, 0, 0)
+
+        graphics.DrawText(canvas, font_1, getBigTextOffset(datetime.now().strftime("%I:%M")) + 1, 20, clockColor, datetime.now().strftime("%I:%M"))
+        graphics.DrawText(canvas, font_2, getSmallTextOffset("No  internet"), 28, subTextColor, "No  internet")
+        
+        matrix.SwapOnVSync(canvas)
+        time.sleep(3)
+
+
 while True:
     try:
         if (round(delay,2) % 1 == 0): # Check lights every second
             lights = requests.get("https://api.smartthings.com/v1/devices/" + deviceID + "/status", headers = {'Authorization': 'Bearer '+ auth}).json()
     
-
         if (round(delay,2) % 10 == 0): # Check website every 10 seconds
             webStatus = requests.get("https://taharhidouani.com").status_code
 
@@ -133,8 +156,8 @@ while True:
                 description = weather["weather"][0]["description"].capitalize()
                 sunset = datetime.fromtimestamp(weather["sys"]["sunset"]).strftime('%H')
                 sunrise = datetime.fromtimestamp(weather["sys"]["sunrise"]).strftime('%H')
-                darkOutside = ((int(sunset)) < int(datetime.now().strftime("%H")) or int(datetime.now().strftime("%H")) < (int(sunrise))) # Check if it's dark outside
-                weather_text = temperature + "   " + description.split()[-1]
+                darkOutside = ((int(sunset)) < int(datetime.now().strftime("%H")) or int(datetime.now().strftime("%H")) <= (int(sunrise))) # Check if it's dark outside
+                subtexts[1] = temperature + "   " + (description.split()[-1] if description != "Clear sky" else description.split()[0])
                 delay = 0.00
 
         # Set colors to lights color
@@ -143,11 +166,12 @@ while True:
 
         # If it's not dark outside and lights are off, make the text white
         if (status == "off" and darkOutside == False):
-            target_color = colorsys.hsv_to_rgb(0, 0, round(brightness/1.2, 2))
+            # target_color = colorsys.hsv_to_rgb(0, 0, round(brightness/1.2, 2))
+            target_color = (255, 255, 240)
 
         # Default value for first loop (to prevent crash to unset variable)
         if (firstTime):
-            current_color = [round(target_color[0]*255), target_color[1]*255, target_color[2]*255]
+            current_color = [round(target_color[0]*255), round(target_color[1]*255), round(target_color[2]*255)]
             temp_color = colorsys.hsv_to_rgb(float((lights["components"]["main"]["colorControl"]["hue"]["value"])) / 100, float(lights["components"]["main"]["colorControl"]["saturation"]["value"]) / 100, round(brightness))
             firstTime = False
         
@@ -166,40 +190,34 @@ while True:
                 elif (round(target_color[i]*255) > round(current_color[i])):
                     current_color[i] += (differenceColorAmount[i]/30)
 
-            # Checks if the values are valid
-            for i in range(3):
-                if (current_color[i] > 255):
-                    current_color[i] = 255
-                elif (current_color[i] < 0):
-                    current_color[i] = 0
 
-        # Switch between date and weather
-        if (int(str(delay).split('.')[0][-1]) < 5):
-            showDate = True
-            if (int(str(round(delay, 2)).split('.')[0][-1]) == 4 and int(str(round(delay, 2)).split('.')[1]) >= 45 and dateIntensity >= 0):
-                dateIntensity -= 3.5
-            elif (int(str(round(delay, 2)).split('.')[0][-1]) == 0 and int(str(round(delay, 2)).split('.')[1]) < 45 and dateIntensity <= 255):
-                dateIntensity += 3.5
-            if ((dateIntensity * brightness) < 0):
-                dateWhite = 0
-            elif ((dateIntensity * brightness) > 255):
-                dateWhite = 255
+        # Checks if the values are valid
+        clockColor = graphics.Color(255 if current_color[0] > 255 else (0 if current_color[0] < 0 else current_color[0]), 255 if current_color[1] > 255 else (0 if current_color[1] < 0 else current_color[1]), 255 if current_color[2] > 255 else (0 if current_color[2] < 0 else current_color[2]))
+
+        # Fade between subtexts
+        if (fading == False and round(animationTime, 2) != animationIdle):
+            animationTime += 0.01
+        elif (fading == False and round(animationTime, 2) == animationIdle):
+            # Start fading
+            animationTime = 0
+            fading = True
+
+        if (fading):
+            if (fadingIn):
+                subtextOpacity += animationSpeed
+                if (abs(round(subtextOpacity, 2)) == 1):                    
+                    fadingIn = False
+                    fading = False
             else:
-                dateWhite = dateIntensity * brightness
-            dateColor = graphics.Color(dateWhite, dateWhite, dateWhite)
-        else:
-            showDate = False
-            if (int(str(round(delay, 2)).split('.')[0][-1]) == 9 and int(str(round(delay, 2)).split('.')[1]) >= 45 and weatherIntensity >= 0):
-                weatherIntensity -= 3.5
-            elif (int(str(round(delay, 2)).split('.')[0][-1]) == 5 and int(str(round(delay, 2)).split('.')[1]) < 45 and weatherIntensity <= 255):
-                weatherIntensity += 3.5
-            if ((weatherIntensity * brightness) < 0):
-                weatherWhite = 0
-            elif ((weatherIntensity * brightness) > 255):
-                weatherWhite = 255
-            else:
-                weatherWhite = weatherIntensity * brightness
-            weatherColor = graphics.Color(weatherWhite, weatherWhite, weatherWhite)
+                subtextOpacity -= animationSpeed
+                if (abs(round(subtextOpacity, 2)) == 0):
+                    fadingIn = True
+                    if (len(subtexts) - 1 <= subtextIndex):
+                        subtextIndex = 0
+                    else:
+                        subtextIndex += 1
+        
+        subTextColor = graphics.Color(180 * abs(round(subtextOpacity, 2)) * brightness, 180 * abs(round(subtextOpacity, 2)) * brightness, 180 * abs(round(subtextOpacity, 2)) * brightness)
 
         # Time
         clock = datetime.now().strftime("%I:%M")
@@ -207,6 +225,7 @@ while True:
 
         # Date
         date = datetime.today().strftime("%a, %b %d")
+        subtexts[0] = date
 
         if (darkOutside):
             if (status == "off"):
@@ -229,6 +248,17 @@ while True:
     
         time.sleep(0.01)
         delay += 0.01
+    except requests.exceptions.RequestException:
+        canvas.Clear()
+
+        clockColor = graphics.Color(200, 200, 200)
+        subTextColor = graphics.Color(255, 0, 0)
+
+        graphics.DrawText(canvas, font_1, getBigTextOffset(datetime.now().strftime("%I:%M")) + 1, 20, clockColor, datetime.now().strftime("%I:%M"))
+        graphics.DrawText(canvas, font_2, getSmallTextOffset("No  internet"), 28, subTextColor, "No  internet")
+       
+        matrix.SwapOnVSync(canvas)
+        time.sleep(0.01)
     except KeyboardInterrupt:
         sys.exit()
     except Exception as e:
