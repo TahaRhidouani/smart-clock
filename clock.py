@@ -36,10 +36,11 @@ options.pwm_bits = 11
 options.brightness = 100
 options.pwm_lsb_nanoseconds = 50
 options.limit_refresh_rate_hz = 500
+options.pixel_mapper_config = "Rotate:180"
+# options.pixel_mapper_config = "" # If display is right way up
 options.led_rgb_sequence = "RBG"
 options.hardware_mapping = 'adafruit-hat-pwm'
 options.gpio_slowdown = 4
-options.pixel_mapper_config = ""
 options.drop_privileges = False
 options.disable_hardware_pulsing = False
 matrix = RGBMatrix(options = options)
