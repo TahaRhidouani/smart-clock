@@ -23,6 +23,7 @@ weatherRefresh = 120 # Weather refresh (in seconds)
 timezone = -4 # Hours from UTC
 animationIdle = 3 # Number of seconds before moving to next text (for subtext)
 animationSpeed = 0.05 # Higher number = Faster animation (but choppier)
+dimBrightness = 0.02
 
 # Configuration of the display
 options = RGBMatrixOptions()
@@ -36,7 +37,7 @@ options.pwm_bits = 11
 options.brightness = 100
 options.pwm_lsb_nanoseconds = 50
 options.limit_refresh_rate_hz = 500
-options.pixel_mapper_config = "Rotate:180"
+options.pixel_mapper_config = "Rotate:180" # If display is upside down
 # options.pixel_mapper_config = "" # If display is right way up
 options.led_rgb_sequence = "RBG"
 options.hardware_mapping = 'adafruit-hat-pwm'
@@ -62,7 +63,7 @@ brightness = 1
 differenceColorAmount = [0, 0, 0]
 subtexts = [datetime.today().strftime("%a, %b %d"), ""]
 subtextIndex = 0 # Which element of the array is the subtext showing
-subtextOpacity = 0 # Starting opacity of the subtext
+subOpacity = 0 # Starting opacity of the subtext
 animationTime = 0 # Gets incremented as the animation progresses
 fading = True # Is there a current animation running?
 fadingIn = True # Is the subtext animation fading in or fading out?
@@ -166,9 +167,8 @@ while True:
         target_color = colorsys.hsv_to_rgb(float((lights["components"]["main"]["colorControl"]["hue"]["value"])) / 100, float(lights["components"]["main"]["colorControl"]["saturation"]["value"]) / 100, round(brightness))        
 
         # If it's not dark outside and lights are off, make the text white
-        if (status == "off" and darkOutside == False):
-            # target_color = colorsys.hsv_to_rgb(0, 0, round(brightness/1.2, 2))
-            target_color = (255, 255, 240)
+        if (status == "off"):
+            target_color = (1, 1, 0.94)
 
         # Default value for first loop (to prevent crash to unset variable)
         if (firstTime):
@@ -193,7 +193,7 @@ while True:
 
 
         # Checks if the values are valid
-        clockColor = graphics.Color(255 if current_color[0] > 255 else (0 if current_color[0] < 0 else current_color[0]), 255 if current_color[1] > 255 else (0 if current_color[1] < 0 else current_color[1]), 255 if current_color[2] > 255 else (0 if current_color[2] < 0 else current_color[2]))
+        clockColor = graphics.Color((255 if current_color[0] > 255 else (0 if current_color[0] < 0 else current_color[0])) * brightness, (255 if current_color[1] > 255 else (0 if current_color[1] < 0 else current_color[1])) * brightness, (255 if current_color[2] > 255 else (0 if current_color[2] < 0 else current_color[2])) * brightness)
 
         # Fade between subtexts
         if (fading == False and round(animationTime, 2) != animationIdle):
@@ -205,20 +205,21 @@ while True:
 
         if (fading):
             if (fadingIn):
-                subtextOpacity += animationSpeed
-                if (abs(round(subtextOpacity, 2)) == 1):                    
+                subOpacity += animationSpeed
+                if (abs(round(subOpacity, 2)) == 1):                    
                     fadingIn = False
                     fading = False
             else:
-                subtextOpacity -= animationSpeed
-                if (abs(round(subtextOpacity, 2)) == 0):
+                subOpacity -= animationSpeed
+                if (abs(round(subOpacity, 2)) == 0):
                     fadingIn = True
                     if (len(subtexts) - 1 <= subtextIndex):
                         subtextIndex = 0
                     else:
                         subtextIndex += 1
-        
-        subTextColor = graphics.Color(180 * abs(round(subtextOpacity, 2)) * brightness, 180 * abs(round(subtextOpacity, 2)) * brightness, 180 * abs(round(subtextOpacity, 2)) * brightness)
+
+        subtextOpacity = 180 * abs(0 if round(subOpacity, 2) < 0 else round(subOpacity, 2)) * brightness
+        subTextColor = graphics.Color(subtextOpacity, subtextOpacity, subtextOpacity)
 
         # Time
         clock = datetime.now().strftime("%I:%M")
@@ -228,14 +229,14 @@ while True:
         date = datetime.today().strftime("%a, %b %d")
         subtexts[0] = date
 
+        darkOutside = False
+
         if (darkOutside):
             if (status == "off"):
                 # Turn off display
-                if (round(brightness, 2) != 0):
+                if (round(brightness, 2) != dimBrightness):
                     brightness -= 0.02
-                    display()
-                else:
-                    canvas.Clear()
+                display()
             else:
                 # Turn on display
                 if (round(brightness, 2) != 1):
