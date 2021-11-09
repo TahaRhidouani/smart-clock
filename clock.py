@@ -229,8 +229,6 @@ while True:
         date = datetime.today().strftime("%a, %b %d")
         subtexts[0] = date
 
-        darkOutside = False
-
         if (darkOutside):
             if (status == "off"):
                 # Turn off display
