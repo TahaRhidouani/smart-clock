@@ -9,7 +9,7 @@ from rgbmatrix import RGBMatrix, RGBMatrixOptions
 from rgbmatrix import graphics
 
 # API variables
-with open('/srv/dev-disk-by-uuid-87bac57a-ccb7-4b8f-bade-6277e3fa0e30/Nextcloud/nextcloud/data/tahainc/files/Documents/Programming/Server/Clock/apikeys', 'r') as file:
+with open('/home/pi/clock/apikeys', 'r') as file:
     for line in file:
         key = line.strip().split(":")
         if (key[0] == 'apikey'):
@@ -51,9 +51,9 @@ canvas.Clear()
 
 # Graphics stuff
 font_1 = graphics.Font()
-font_1.LoadFont("/srv/dev-disk-by-uuid-87bac57a-ccb7-4b8f-bade-6277e3fa0e30/Nextcloud/nextcloud/data/tahainc/files/Documents/Programming/Server/Clock/time.bdf")
+font_1.LoadFont("/home/pi/clock/time.bdf")
 font_2 = graphics.Font()
-font_2.LoadFont("/srv/dev-disk-by-uuid-87bac57a-ccb7-4b8f-bade-6277e3fa0e30/Nextcloud/nextcloud/data/tahainc/files/Documents/Programming/Server/Clock/text.bdf")
+font_2.LoadFont("/home/pi/clock/text.bdf")
 
 # Initializing variables
 firstTime = True
@@ -79,22 +79,6 @@ def display():
     graphics.DrawText(canvas, font_1, getBigTextOffset(clock) + 1, 20, clockColor, clock)
     graphics.DrawText(canvas, font_2, getSmallTextOffset(subtexts[subtextIndex]), 28, subTextColor, subtexts[subtextIndex])
     
-    global webStatus
-
-    if (webStatus != 200): # If website is down, flash red border
-        if (round(delay, 2)%2 == 0):
-            subprocess.Popen(["sudo", "mount", "-a"])
-            webStatus = requests.get("https://taharhidouani.com").status_code
-            print("Website is down (" + str(datetime.now()) + ")")
-        
-        if (int(delay)%2 == 0):
-            for x in range(0, canvas.width):
-                canvas.SetPixel(x, 0, 255*brightness, 0, 0)
-                canvas.SetPixel(x, canvas.height - 1, 255*brightness, 0, 0)
-            for y in range(0, canvas.height):
-                canvas.SetPixel(0, y, 255*brightness, 0, 0)
-                canvas.SetPixel(canvas.width - 1, y, 255*brightness, 0, 0)
-
     matrix.SwapOnVSync(canvas)
 
 # To center the clock text
@@ -146,9 +130,6 @@ while True:
     try:
         if (round(delay,2) % 1 == 0): # Check lights every second
             lights = requests.get("https://api.smartthings.com/v1/devices/" + deviceID + "/status", headers = {'Authorization': 'Bearer '+ auth}).json()
-    
-        if (round(delay,2) % 10 == 0): # Check website every 10 seconds
-            webStatus = requests.get("https://taharhidouani.com").status_code
 
         # Weather
         if (round(delay, 2) == weatherRefresh):

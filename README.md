@@ -1,4 +1,4 @@
-# Clock
+# Smart Clock
 
 ### Main features:
 
@@ -8,6 +8,6 @@
 
 <br />
 
-![Image 1](<https://github.com/TahaInc/clock/blob/main/Screenshots/Picture%20(1).JPEG?raw=true>)
+![weather](https://github.com/TahaInc/clock/blob/main/images/picture_1.png?raw=true)
 
-![Image 2](<https://github.com/TahaInc/clock/blob/main/Screenshots/Picture%20(2).JPEG?raw=true>)
+![date](https://github.com/TahaInc/clock/blob/main/images/picture_2.png?raw=true)
