@@ -1,29 +1,27 @@
+import colorsys
+import sys
 import time
 from datetime import datetime
-import json
-import sys
+
 import requests
-import colorsys
-import subprocess
-from rgbmatrix import RGBMatrix, RGBMatrixOptions
-from rgbmatrix import graphics
+from rgbmatrix import RGBMatrix, RGBMatrixOptions, graphics
 
 # API variables
 with open('/home/pi/clock/apikeys', 'r') as file:
     for line in file:
         key = line.strip().split(":")
-        if (key[0] == 'apikey'):
+        if key[0] == 'apikey':
             apikey = key[1] # From openweathermap
-        elif (key[0] == 'auth'):
+        elif key[0] == 'auth':
             auth = key[1] # Authorization key for smartthings
 
 # Key variables
-city = "Ottawa, CA" # Weather location
-weatherRefresh = 120 # Weather refresh (in seconds)
-timezone = -4 # Hours from UTC
-animationIdle = 3 # Number of seconds before moving to next text (for subtext)
-animationSpeed = 0.05 # Higher number = Faster animation (but choppier)
-dimBrightness = 0.02
+CITY = "Ottawa, CA" # Weather location
+WEATHER_REFRESH = 120 # Weather refresh (in seconds)
+TIMEZONE = -4 # Hours from UTC
+TEXT_PAUSE = 3 # Number of seconds before moving to next text (for subtext)
+ANIMATION_SPEED = 0.05 # Higher number = Faster animation (but choppier)
+DIM_BRIGHTNESS = 0 # Set to 0.02 for a reasonably dim amount
 
 # Configuration of the display
 options = RGBMatrixOptions()
@@ -57,7 +55,7 @@ font_2.LoadFont("/home/pi/clock/text.bdf")
 
 # Initializing variables
 firstTime = True
-delay = weatherRefresh
+delay = WEATHER_REFRESH
 temperature, description, sunset, sunrise = "", "", "" ,""
 brightness = 1
 differenceColorAmount = [0, 0, 0]
@@ -132,8 +130,8 @@ while True:
             lights = requests.get("https://api.smartthings.com/v1/devices/" + deviceID + "/status", headers = {'Authorization': 'Bearer '+ auth}).json()
 
         # Weather
-        if (round(delay, 2) == weatherRefresh):
-            weather = requests.get("http://api.openweathermap.org/data/2.5/weather?appid="+ apikey + "&q=" + city + "&units=metric").json()
+        if (round(delay, 2) == WEATHER_REFRESH):
+            weather = requests.get("http://api.openweathermap.org/data/2.5/weather?appid="+ apikey + "&q=" + CITY + "&units=metric").json()
             if weather["cod"] != "404":
                 temperature = str(int(weather["main"]["feels_like"])) + u"\N{DEGREE SIGN}"
                 description = weather["weather"][0]["description"].capitalize()
@@ -177,21 +175,21 @@ while True:
         clockColor = graphics.Color((255 if current_color[0] > 255 else (0 if current_color[0] < 0 else current_color[0])) * brightness, (255 if current_color[1] > 255 else (0 if current_color[1] < 0 else current_color[1])) * brightness, (255 if current_color[2] > 255 else (0 if current_color[2] < 0 else current_color[2])) * brightness)
 
         # Fade between subtexts
-        if (fading == False and round(animationTime, 2) != animationIdle):
+        if (fading == False and round(animationTime, 2) != TEXT_PAUSE):
             animationTime += 0.01
-        elif (fading == False and round(animationTime, 2) == animationIdle):
+        elif (fading == False and round(animationTime, 2) == TEXT_PAUSE):
             # Start fading
             animationTime = 0
             fading = True
 
         if (fading):
             if (fadingIn):
-                subOpacity += animationSpeed
+                subOpacity += ANIMATION_SPEED
                 if (abs(round(subOpacity, 2)) == 1):                    
                     fadingIn = False
                     fading = False
             else:
-                subOpacity -= animationSpeed
+                subOpacity -= ANIMATION_SPEED
                 if (abs(round(subOpacity, 2)) == 0):
                     fadingIn = True
                     if (len(subtexts) - 1 <= subtextIndex):
@@ -213,7 +211,7 @@ while True:
         if (darkOutside):
             if (status == "off"):
                 # Turn off display
-                if (round(brightness, 2) != dimBrightness):
+                if (round(brightness, 2) != DIM_BRIGHTNESS):
                     brightness -= 0.02
                 display()
             else:

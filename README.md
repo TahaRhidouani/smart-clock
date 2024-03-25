@@ -8,6 +8,6 @@
 
 <br />
 
-![weather](https://github.com/TahaInc/clock/blob/main/images/picture_1.png?raw=true)
+![weather](./images/picture_1.jpg)
 
-![date](https://github.com/TahaInc/clock/blob/main/images/picture_2.png?raw=true)
+![date](./images/picture_2.jpg)
